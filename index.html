@@ -126,6 +126,7 @@
     font-size: 10px; font-weight: bold; cursor: pointer;
     box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     transition: transform 0.2s;
+    user-select: none;
   }
   .player-circle:active { transform: scale(0.95); }
   .player-circle .pts { color: var(--green); font-size: 9px; }
@@ -155,6 +156,42 @@
   .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: 0.3s; }
   .dot.active { background: var(--green); width: 20px; border-radius: 10px; box-shadow: 0 0 10px var(--green-glow); }
 
+  /* MODAL (Fenêtre flottante) */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px);
+    display: none; justify-content: center; align-items: flex-end;
+    z-index: 100;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-content {
+    background: var(--panel); width: 100%; max-width: 500px;
+    border-radius: 24px 24px 0 0; padding: 20px;
+    border-top: 2px solid var(--green);
+    animation: slideUp 0.3s ease-out;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+  .modal-title { font-size: 18px; font-weight: 800; color: var(--green); }
+  .close-btn { background: none; border: none; color: var(--muted); font-size: 24px; cursor: pointer; }
+  
+  .suggestion-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px; margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .suggestion-card.best { border-color: var(--green); box-shadow: 0 0 10px rgba(16, 185, 129, 0.2); }
+  .s-info h4 { font-size: 14px; margin-bottom: 4px; }
+  .s-info p { font-size: 11px; color: var(--muted); }
+  .s-price { font-size: 14px; font-weight: bold; color: var(--green); text-align: right; }
+  .s-price span { display: block; font-size: 10px; color: var(--muted); font-weight: normal; }
+
+  .btn-close-modal {
+    width: 100%; padding: 12px; border-radius: 12px; border: none;
+    background: var(--green); color: #000; font-weight: bold; font-size: 14px;
+    cursor: pointer; margin-top: 10px;
+  }
 </style>
 </head>
 <body>
@@ -198,7 +235,7 @@
     <!-- PAGE 2 : TERRAIN -->
     <div class="page">
       <h2 style="font-size: 22px; margin-bottom: 5px;">Tactical Pitch</h2>
-      <p style="font-size: 12px; color: var(--muted); margin-bottom: 10px;">Glissez à gauche/droite</p>
+      <p style="font-size: 12px; color: var(--muted); margin-bottom: 10px;">Glissez à gauche/droite · Appui long sur un joueur</p>
       
       <div class="pitch-wrapper">
         <div class="pitch">
@@ -267,7 +304,48 @@
     <div class="dot"></div>
   </div>
 
+  <!-- MODAL POUR ANALYSE JOUEUR -->
+  <div class="modal-overlay" id="playerModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="modalPlayerName">Nom du joueur</div>
+        <button class="close-btn" onclick="closeModal()">✕</button>
+      </div>
+      
+      <p style="font-size: 12px; color: var(--muted); margin-bottom: 15px;">
+        Suggestions basées sur l'Agent de Transfert (Données simulées)
+      </p>
+
+      <div class="suggestion-card best">
+        <div class="s-info">
+          <h4>Option 1 · Best Overall</h4>
+          <p>Note estimée : 8.5/10 · Fixtures faciles</p>
+        </div>
+        <div class="s-price">£7.5m <span>Isak</span></div>
+      </div>
+
+      <div class="suggestion-card">
+        <div class="s-info">
+          <h4>Option 2 · Attacking Potential</h4>
+          <p>Note estimée : 7.8/10 · xGI élevé</p>
+        </div>
+        <div class="s-price">£8.2m <span>Watkins</span></div>
+      </div>
+
+      <div class="suggestion-card">
+        <div class="s-info">
+          <h4>Option 3 · Value / Balanced</h4>
+          <p>Note estimée : 7.2/10 · Bon rapport qualité/prix</p>
+        </div>
+        <div class="s-price">£5.9m <span>Wissa</span></div>
+      </div>
+
+      <button class="btn-close-modal" onclick="closeModal()">Fermer</button>
+    </div>
+  </div>
+
   <script>
+    // --- 1. GESTION DU SWIPE (Navigation) ---
     const swipeContainer = document.getElementById('swipe');
     const dots = document.querySelectorAll('.dot');
 
@@ -277,6 +355,40 @@
         dot.classList.toggle('active', i === pageIndex);
       });
     });
+
+    // --- 2. GESTION DE L'APPUI LONG (Long Press) ---
+    let pressTimer;
+
+    document.querySelectorAll('.player-circle').forEach(player => {
+      // Mobile
+      player.addEventListener('touchstart', (e) => {
+        pressTimer = setTimeout(() => {
+          openModal(player.innerText.split('\n')[0]);
+        }, 600);
+      });
+      player.addEventListener('touchend', () => clearTimeout(pressTimer));
+      player.addEventListener('touchmove', () => clearTimeout(pressTimer));
+      
+      // PC (Souris)
+      player.addEventListener('mousedown', () => {
+        pressTimer = setTimeout(() => {
+          openModal(player.innerText.split('\n')[0]);
+        }, 600);
+      });
+      player.addEventListener('mouseup', () => clearTimeout(pressTimer));
+      player.addEventListener('mouseleave', () => clearTimeout(pressTimer));
+    });
+
+    // --- 3. FONCTIONS MODAL ---
+    function openModal(name) {
+      document.getElementById('modalPlayerName').innerText = "Analyse : " + name;
+      document.getElementById('playerModal').classList.add('active');
+      if (navigator.vibrate) navigator.vibrate(50);
+    }
+
+    function closeModal() {
+      document.getElementById('playerModal').classList.remove('active');
+    }
   </script>
 </body>
 </html>
