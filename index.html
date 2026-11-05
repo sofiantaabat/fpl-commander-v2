@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FPL Commander V2</title>
+<style>
+  :root {
+    --bg: #070b14;
+    --panel: #111827;
+    --panel-light: #1f2937;
+    --green: #10b981;
+    --green-glow: rgba(16, 185, 129, 0.4);
+    --text: #f9fafb;
+    --muted: #9ca3af;
+    --border: #374151;
+    --radius: 16px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7, 11, 20, 0.8);
+    backdrop-filter: blur(10px);
+    z-index: 10;
+  }
+  .logo { font-size: 18px; font-weight: 800; letter-spacing: 1px; }
+  .logo span { color: var(--green); }
+  .status { font-size: 12px; color: var(--green); background: rgba(16, 185, 129, 0.1); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.2); }
+
+  /* SWIPE CONTAINER */
+  .swipe-container {
+    flex: 1;
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .swipe-container::-webkit-scrollbar { display: none; }
+
+  .page {
+    min-width: 100%;
+    height: 100%;
+    scroll-snap-align: start;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* PAGE 1 : DASHBOARD */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  .card.full { grid-column: span 2; }
+  .card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .card-value { font-size: 24px; font-weight: 800; color: var(--text); }
+  .card-value.green { color: var(--green); }
+
+  /* PAGE 2 : TERRAIN */
+  .pitch-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+  .pitch {
+    background: linear-gradient(180deg, #064e3b, #065f46);
+    border-radius: var(--radius);
+    position: relative;
+    flex: 1;
+    min-height: 400px;
+    border: 2px solid rgba(16, 185, 129, 0.3);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    padding: 20px 10px;
+    overflow: hidden;
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
+  }
+  /* Lignes du terrain */
+  .pitch::before {
+    content: ""; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(16, 185, 129, 0.3); transform: translateY(-50%);
+  }
+  .pitch::after {
+    content: ""; position: absolute; top: 50%; left: 50%; width: 100px; height: 100px; border: 2px solid rgba(16, 185, 129, 0.3); border-radius: 50%; transform: translate(-50%, -50%);
+  }
+
+  .row { display: flex; justify-content: space-around; z-index: 1; }
+  
+  .player-circle {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--panel-light); border: 2px solid var(--green);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: bold; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    transition: transform 0.2s;
+  }
+  .player-circle:active { transform: scale(0.95); }
+  .player-circle .pts { color: var(--green); font-size: 9px; }
+
+  /* BANC */
+  .bench {
+    margin-top: 15px;
+    background: var(--panel);
+    border-radius: var(--radius);
+    padding: 15px;
+    border: 1px solid var(--border);
+  }
+  .bench-title { font-size: 12px; color: var(--muted); margin-bottom: 10px; font-weight: bold; }
+  .bench-row { display: flex; justify-content: space-around; }
+  .bench .player-circle { width: 36px; height: 36px; border-color: var(--muted); }
+
+  /* PAGE 3 : STATS */
+  .stats-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+  .stat-row { display: flex; justify-content: space-between; padding: 12px; background: var(--panel); border-radius: 12px; border: 1px solid var(--border); }
+  .stat-name { font-size: 14px; }
+  .stat-val { font-weight: bold; color: var(--green); }
+
+  /* INDICATEUR DE PAGE */
+  .dots {
+    display: flex; justify-content: center; gap: 6px; padding-bottom: 15px;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: 0.3s; }
+  .dot.active { background: var(--green); width: 20px; border-radius: 10px; box-shadow: 0 0 10px var(--green-glow); }
+
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">FPL <span>COMMANDER</span></div>
+    <div class="status">● V2 LIVE</div>
+  </header>
+
+  <div class="swipe-container" id="swipe">
+    
+    <!-- PAGE 1 : DASHBOARD -->
+    <div class="page">
+      <h2 style="font-size: 22px; margin-bottom: 15px;">Command Center</h2>
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-label">Points</div>
+          <div class="card-value green">742</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Rank</div>
+          <div class="card-value">1.2M</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Bank</div>
+          <div class="card-value">£2.8m</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Free Transfers</div>
+          <div class="card-value">1</div>
+        </div>
+        <div class="card full">
+          <div class="card-label">Recommandation</div>
+          <div style="font-size: 14px; margin-top: 5px; color: var(--muted);">
+            Capitaine : <span style="color:var(--text); font-weight:bold;">Salah</span> (EP 8.2)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE 2 : TERRAIN -->
+    <div class="page">
+      <h2 style="font-size: 22px; margin-bottom: 5px;">Tactical Pitch</h2>
+      <p style="font-size: 12px; color: var(--muted); margin-bottom: 10px;">Glissez à gauche/droite</p>
+      
+      <div class="pitch-wrapper">
+        <div class="pitch">
+          <div class="row">
+            <div class="player-circle">FWD<br><span class="pts">6</span></div>
+            <div class="player-circle">FWD<br><span class="pts">2</span></div>
+            <div class="player-circle">FWD<br><span class="pts">8</span></div>
+          </div>
+          <div class="row">
+            <div class="player-circle">MID<br><span class="pts">3</span></div>
+            <div class="player-circle">MID<br><span class="pts">12</span></div>
+            <div class="player-circle">MID<br><span class="pts">5</span></div>
+            <div class="player-circle">MID<br><span class="pts">1</span></div>
+          </div>
+          <div class="row">
+            <div class="player-circle">DEF<br><span class="pts">6</span></div>
+            <div class="player-circle">DEF<br><span class="pts">4</span></div>
+            <div class="player-circle">DEF<br><span class="pts">7</span></div>
+            <div class="player-circle">DEF<br><span class="pts">2</span></div>
+          </div>
+          <div class="row">
+            <div class="player-circle" style="border-color: #eab308;">GK<br><span class="pts" style="color:#eab308;">8</span></div>
+          </div>
+        </div>
+
+        <div class="bench">
+          <div class="bench-title">BANC</div>
+          <div class="bench-row">
+            <div class="player-circle">GK</div>
+            <div class="player-circle">DEF</div>
+            <div class="player-circle">MID</div>
+            <div class="player-circle">FWD</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE 3 : STATS -->
+    <div class="page">
+      <h2 style="font-size: 22px; margin-bottom: 15px;">Player Stats</h2>
+      <div class="stats-list">
+        <div class="stat-row">
+          <span class="stat-name">Salah</span>
+          <span class="stat-val">142 pts</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-name">Haaland</span>
+          <span class="stat-val">128 pts</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-name">Palmer</span>
+          <span class="stat-val">115 pts</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-name">Saka</span>
+          <span class="stat-val">98 pts</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="dots" id="dots">
+    <div class="dot active"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+  </div>
+
+  <script>
+    const swipeContainer = document.getElementById('swipe');
+    const dots = document.querySelectorAll('.dot');
+
+    swipeContainer.addEventListener('scroll', () => {
+      const pageIndex = Math.round(swipeContainer.scrollLeft / swipeContainer.clientWidth);
+      dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === pageIndex);
+      });
+    });
+  </script>
+</body>
+</html>
